@@ -50,8 +50,15 @@ You can also just hit enter to run this query, which is provided as the default.
 ### Configuration
 
 The `FinancialDeepResearchManager` supports configuration parameters:
-- `max_iterations`: Maximum number of research iterations (default: 3)
+- `max_iterations`: Maximum number of research iterations (default: 2)
 - `max_depth_per_topic`: Maximum depth to research each sub-topic (default: 2)
+
+### Timeout Configuration
+
+The system is configured with extended timeouts to handle the iterative research process:
+- **Activity timeouts**: 10 minutes start-to-close, 2 minutes schedule-to-start, 5 minutes heartbeat
+- **Workflow timeouts**: 30 minutes execution timeout, 25 minutes run timeout
+- **Expected duration**: 10-15 minutes for complete research
 
 ## Components
 

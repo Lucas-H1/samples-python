@@ -46,7 +46,7 @@ class FinancialDeepResearchManager:
     3. Iterate: Continue until sufficient depth is achieved
     """
 
-    def __init__(self, max_iterations: int = 3, max_depth_per_topic: int = 2) -> None:
+    def __init__(self, max_iterations: int = 2, max_depth_per_topic: int = 2) -> None:
         self.run_config = RunConfig()
         self.max_iterations = max_iterations
         self.max_depth_per_topic = max_depth_per_topic
@@ -71,16 +71,26 @@ class FinancialDeepResearchManager:
 
             for iteration in range(self.max_iterations):
                 with custom_span(f"Research iteration {iteration + 1}"):
+                    print(
+                        f"Starting research iteration {iteration + 1}/{self.max_iterations}"
+                    )
                     iteration_results = await self._exploit_subtopics(
                         query, exploration_plan.sub_topics, iteration, research_summary
                     )
                     all_search_results.extend(iteration_results["search_results"])
                     research_summary.append(iteration_results["summary"])
 
+                    print(
+                        f"Completed iteration {iteration + 1}: {len(iteration_results['search_results'])} new results"
+                    )
+
                     # Check if we should continue iterating
                     if not self._should_continue_iteration(
                         iteration_results, iteration
                     ):
+                        print(
+                            f"Stopping iterations early after iteration {iteration + 1}"
+                        )
                         break
 
             # Phase 3: Synthesize all research into final report
@@ -197,8 +207,10 @@ Issues: {verification.issues}"""
         # Sort sub-topics by priority
         sorted_topics = sorted(sub_topics, key=lambda x: x.priority)
 
-        for topic in sorted_topics:
+        for i, topic in enumerate(sorted_topics, 1):
             with custom_span(f"Researching sub-topic: {topic.name}"):
+                print(f"  Researching sub-topic {i}/{len(sorted_topics)}: {topic.name}")
+
                 # Create exploitation plan for this specific sub-topic
                 exploit_plan = await self._create_exploit_plan(
                     query, topic, iteration, research_summary
@@ -207,6 +219,8 @@ Issues: {verification.issues}"""
                 # Perform searches for this sub-topic
                 topic_results = await self._perform_searches(exploit_plan)
                 iteration_results["search_results"].extend(topic_results)
+
+                print(f"    Found {len(topic_results)} results for {topic.name}")
 
                 # Add to summary with more detail
                 iteration_results[
@@ -277,11 +291,12 @@ Issues: {verification.issues}"""
 
         # Stop if we didn't get many new results (diminishing returns)
         search_count = len(iteration_results["search_results"])
-        if search_count < 3:  # Very few new results
+        if search_count < 5:  # Fewer results than expected
             return False
 
-        # Continue if we're still in early iterations and getting good results
-        return iteration < 2
+        # For the iterative approach, be more conservative about continuing
+        # Only continue if we're in the first iteration and got good results
+        return iteration == 0 and search_count >= 8
 
     async def _write_comprehensive_report(
         self, query: str, all_search_results: list[str], research_summary: list[str]
