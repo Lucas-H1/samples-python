@@ -22,8 +22,10 @@ EXPLORE_PROMPT = (
 EXPLOIT_PROMPT = (
     "You are a financial deep research orchestrator in EXPLOITATION mode. Given a specific sub-topic or theme "
     "that was identified during exploration, create detailed searches to deeply research this specific area. "
-    "Focus on recent news, official filings, analyst commentary, and specific data points. "
-    "Output between 5 and 10 search terms that dive deep into this specific sub-topic."
+    "You will be provided with previous research findings to help you avoid duplication and build upon existing knowledge. "
+    "Focus on recent news, official filings, analyst commentary, and specific data points that add new value. "
+    "Avoid searches that would duplicate previous findings. Instead, look for gaps, contradictions, or deeper insights. "
+    "Output between 5 and 10 search terms that dive deep into this specific sub-topic while building on previous research."
 )
 
 

@@ -72,7 +72,7 @@ class FinancialDeepResearchManager:
             for iteration in range(self.max_iterations):
                 with custom_span(f"Research iteration {iteration + 1}"):
                     iteration_results = await self._exploit_subtopics(
-                        query, exploration_plan.sub_topics, iteration
+                        query, exploration_plan.sub_topics, iteration, research_summary
                     )
                     all_search_results.extend(iteration_results["search_results"])
                     research_summary.append(iteration_results["summary"])
@@ -182,7 +182,11 @@ Issues: {verification.issues}"""
         return result.final_output_as(VerificationResult)
 
     async def _exploit_subtopics(
-        self, query: str, sub_topics: list[ResearchSubTopic], iteration: int
+        self,
+        query: str,
+        sub_topics: list[ResearchSubTopic],
+        iteration: int,
+        research_summary: list[str],
     ) -> dict:
         """Phase 2: Deeply research each sub-topic in exploitation mode."""
         iteration_results = {
@@ -196,30 +200,61 @@ Issues: {verification.issues}"""
         for topic in sorted_topics:
             with custom_span(f"Researching sub-topic: {topic.name}"):
                 # Create exploitation plan for this specific sub-topic
-                exploit_plan = await self._create_exploit_plan(query, topic, iteration)
+                exploit_plan = await self._create_exploit_plan(
+                    query, topic, iteration, research_summary
+                )
 
                 # Perform searches for this sub-topic
                 topic_results = await self._perform_searches(exploit_plan)
                 iteration_results["search_results"].extend(topic_results)
 
-                # Add to summary
+                # Add to summary with more detail
                 iteration_results[
                     "summary"
                 ] += f"\n- {topic.name}: {len(topic_results)} search results"
 
+                # Add brief summary of what was found (first 200 chars of first result)
+                if topic_results:
+                    first_result_preview = (
+                        topic_results[0][:200] + "..."
+                        if len(topic_results[0]) > 200
+                        else topic_results[0]
+                    )
+                    iteration_results[
+                        "summary"
+                    ] += f"\n  Preview: {first_result_preview}"
+
         return iteration_results
 
     async def _create_exploit_plan(
-        self, query: str, sub_topic: ResearchSubTopic, iteration: int
+        self,
+        query: str,
+        sub_topic: ResearchSubTopic,
+        iteration: int,
+        research_summary: list[str],
     ) -> FinancialSearchPlan:
         """Create a detailed search plan for a specific sub-topic."""
+        # Truncate research summary if too long (keep last 2 iterations)
+        truncated_summary = self._truncate_research_summary(
+            research_summary, max_iterations=2
+        )
+
         input_prompt = f"""
         Original Query: {query}
         Sub-topic to research: {sub_topic.name}
         Sub-topic description: {sub_topic.description}
         Research iteration: {iteration + 1}
         
-        Create detailed searches to deeply research this specific sub-topic.
+        Previous Research Summary:
+        {truncated_summary}
+        
+        Based on the previous research findings, create detailed searches to:
+        1. Fill any gaps in the current research for this sub-topic
+        2. Deepen understanding of key findings from previous iterations
+        3. Explore new angles or recent developments not yet covered
+        4. Verify or contradict previous findings if needed
+        
+        Focus on searches that will add new value beyond what has already been researched.
         """
 
         result = await Runner.run(
@@ -287,6 +322,28 @@ Issues: {verification.issues}"""
             run_config=self.run_config,
         )
         return result.final_output_as(FinancialReportData)
+
+    def _truncate_research_summary(
+        self, research_summary: list[str], max_iterations: int = 2
+    ) -> str:
+        """Truncate research summary to keep only the most recent iterations."""
+        if not research_summary:
+            return "No previous research available."
+
+        # Keep only the last max_iterations
+        recent_summaries = (
+            research_summary[-max_iterations:]
+            if len(research_summary) > max_iterations
+            else research_summary
+        )
+
+        formatted = "Recent Research Findings:\n"
+        for i, summary in enumerate(
+            recent_summaries, len(research_summary) - len(recent_summaries) + 1
+        ):
+            formatted += f"\nIteration {i}:\n{summary}\n"
+
+        return formatted
 
     def _format_research_summary(self, research_summary: list[str]) -> str:
         """Format the research summary for the final output."""
